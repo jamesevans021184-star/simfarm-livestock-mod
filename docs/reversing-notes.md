@@ -66,3 +66,39 @@ Resident code around file offset `0x102EA` creates entries in a 127-slot object 
 Several callers pass explicit type IDs including `4`, `5` and `7`; these are now priority candidates for the livestock/tool path and will be verified against the animal definition table before patching.
 
 A resident routine references data segment `654Ah` offset `237Eh`, which maps exactly into the livestock-name block. This confirms that the runtime segment mapping for the permanent data image is understood well enough to make code/data cross-references.
+
+
+## Livestock IDs and record pool confirmed
+
+Static analysis now confirms that livestock item IDs are the contiguous range `0xDC..0xDF`.
+
+The purchase/placement dispatcher explicitly tests this range and calls far routine `12EE:0054`. That routine is a dedicated livestock allocator:
+
+- 127 possible slots (indices 1..126)
+- record size: `0x14` bytes
+- item/type word at record +0
+- active flags at +2 (bit `0x20`)
+- map X/Y bytes at +5/+6
+- state byte at +4
+- linked 0x38-byte moving-object index at +0x10
+
+The paired delete routine is `12EE:00D4`.
+
+The livestock state-update routine begins at root-image offset approximately `0x1316A`. It iterates the 0x14-byte livestock pool and manages a linked 0x38-byte moving object while the animal changes movement states.
+
+## Existing relocation support
+
+The generic map-object relocation/update code already has explicit branches for `0xDC..0xDF`. When that type range is selected, it updates the livestock record's X/Y bytes and relocation flag. This is strong evidence that moving livestock does not require a new object format or renderer: the engine already has a relocation path for livestock records.
+
+External documentation for the original game says the Move Object tool selects machines, feed and troughs, but not livestock. This matches the requested mod: the patch target is the selection/eligibility path that feeds the existing relocation routine, rather than rewriting animal movement from scratch.
+
+## Original feeding behaviour reference
+
+Original-game documentation confirms:
+- livestock require feed and water;
+- feed bales are consumed over time;
+- troughs are replenished through the water system;
+- barns reduce food/water consumption;
+- rivers/lakes/ditches can form pen boundaries but are not treated as direct drinking sources in the stock game.
+
+This gives a behavioural baseline for the grazing/natural-water patch.

@@ -102,3 +102,31 @@ Original-game documentation confirms:
 - rivers/lakes/ditches can form pen boundaries but are not treated as direct drinking sources in the stock game.
 
 This gives a behavioural baseline for the grazing/natural-water patch.
+
+
+## Placement validator narrowed
+
+Further disassembly identifies a common placement validator beginning near flat root-image address `0x1ED68`.
+
+The routine explicitly accepts these item families for object-aware placement checks:
+
+- `0x0000..0x003F`
+- `0x00C0..0x00D7`
+- livestock `0x00DC..0x00DF`
+- special item `0x012C`
+
+For accepted items it resolves the item's footprint/definition and validates the target rectangle against the map. This confirms that **livestock are already legal inputs to the stock placement machinery**.
+
+Together with the previously confirmed relocation writer at `0x1C63C`, the Move Object modification can be narrowed to the pick-up/selection path: once a livestock record is selected, the original engine already knows how to validate its destination and commit the new X/Y position.
+
+## Livestock update state-machine observations
+
+The dedicated 0x14-byte livestock pool contains:
+
+- +0x00 item/species ID
+- +0x02 flags (active bit 0x20; relocation/dirty bit 0x04 observed)
+- +0x03 map X
+- +0x04 map Y
+- +0x10 linked 0x38-byte moving-object index
+
+The state machine at `0x1576A` is movement/rendering-oriented. It creates a linked moving object, advances it, commits the final tile back to +3/+4, updates the map tile's livestock marker, then releases the linked moving object. Food/water consumption therefore lives outside this movement state machine and should not be patched here.
